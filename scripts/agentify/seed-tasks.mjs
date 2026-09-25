@@ -72,7 +72,7 @@ export const tasks = [
      "A threaded plain-text reply sent to an owner-provided test address (the send approved through ask_user); Sent reconciliation by Message-ID tried, including the no-result case",
      "docs/spike/gmail.md records behaviour, limits and anything contradicting the blueprint"],
     "Test accounts only."],
-  ["SP-03", "Spike: Calendar availability with FreeBusy", ["spike"],
+  ["SP-03", "Spike: Calendar availability with FreeBusy", ["spike", "owner-input"],
     "Prove primary-calendar availability checks and their failure modes.",
     `${T} §4 (FreeBusy); scenario 21`, ["SP-01"],
     ["FreeBusy on the primary calendar for a resolved interval and IANA timezone",

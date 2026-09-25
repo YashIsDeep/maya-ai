@@ -58,7 +58,8 @@ the aliases. The flag is harmless. Don't "fix" it to `opus`.
    about six minutes), call it again with the same questions. Never proceed on your own recommendation
    instead of an answer. If you truly cannot get an answer, stop and say so in your final answer. Do
    not guess.
-   - If the owner **skips** a question, or answers blank, they are delegating that choice. Use your
+   - If the owner presses **Let it decide** (skips the question) or answers blank, they are
+     delegating that choice. Use your
      recommendation and record it under *Assumptions*.
    - Open product decisions (§3.5) cannot be delegated this way. Ask again, stating that it is a
      product decision.
@@ -99,8 +100,8 @@ the aliases. The flag is harmless. Don't "fix" it to `opus`.
    - Never ask for, paste or echo a secret (API key, OAuth client secret, token, password) in
      `ask_user`, a prompt, an artifact, a commit or a log.
    - The owner puts secrets in `C:\code\maya\.env` **before starting the task**. That file is
-     gitignored, and Ensure worktree copies it into the task worktree once, when the task first
-     enters Plan.
+     gitignored. Ensure worktree copies it into the task worktree only when the worktree has no
+     `.env` yet, which in practice means once, when the task first enters Plan.
    - A secret added later must also be added to the worktree's own `.env`. The worktree path is shown
      in the task drawer.
    - Agents may ask *whether* a named variable is in place, never for its value.
@@ -157,11 +158,12 @@ every approval, send-back and answer appears on the task's timeline.
 | **Implement** | 1. Ensure worktree · 2. **Implement · GPT-6 Luna max** (autonomous, commits on the task branch, saves `implementation.md`) · 3. Move to next stage | commits, `implementation.md` | Answers the implementer's questions, if it asks any. |
 | **Review** | 1. **Prepare review** (shell: writes `.agentify/review/` in the worktree with the diff, commits, checks output and uncommitted state) · 2. **Code review · Opus 5.5 (fresh)** (read-only, saves `review.md`, **waits for approval**) · 3. Move to next stage | `review.md`, the drawer's diff | Reads `review.md`, `implementation.md` and the diff. Then **Approves** (which merges), or **Sends back** to Implement with a note. |
 | **Merge** | 1. **Merge into main** (shell: merges `main` into the branch, re-runs every check, fast-forwards `main`) · 2. Move to next stage | the new `main` | Acts only if it fails; see §9. |
-
-Prepare review and Merge run `main`'s copy of `scripts/agentify/` (from the main checkout), so a
-task branch cannot change the evidence its own reviewer sees or the way it is merged. The checks
-they run are the branch's own `maya.checks.json` files.
 | **Done** | none | | Archives the task once its chats are no longer needed. |
+
+Prepare review and Merge run `main`'s copies of `scripts/agentify/` and `scripts/check.mjs` (from the
+main checkout), pointed at the task worktree. A task branch therefore cannot change the evidence its
+own reviewer sees, the check runner, or the way it is merged. The checks that run are the branch's own
+`maya.checks.json` files.
 
 **At a gate:**
 
@@ -338,8 +340,9 @@ Reply with **only** this document. It is saved as `review.md`.
   in Agentify, following the same steps.
 - **Watching.** Tell the owner what needs them (questions, gates, failures) by pointing to the task
   in Agentify. Never relay, summarize-and-decide, or answer on their behalf.
-- **Your own reviews.** Anything of yours that needs review, such as a process change, is reviewed by
-  a fresh Opus agent, never by you.
+- **Your own reviews.** Anything of yours that needs review, such as a process change, goes through a
+  `process` task in Agentify (§8), so a fresh Opus reviewer sees it on the board. It never goes through
+  an off-board subagent, and you never review it yourself.
 
 ## 7. Task catalogue conventions
 
@@ -372,7 +375,7 @@ Reply with **only** this document. It is saved as `review.md`.
 ## 8. Changing the process or the workflow
 
 This document, `setup-workflow.mjs` (the Maya Build workflow: stages, actions, prompts, stage
-defaults), `seed-tasks.mjs`, and the scripts under `scripts/agentify/` change only through a task
+defaults), `seed-tasks.mjs`, `scripts/check.mjs`, and the scripts under `scripts/agentify/` change only through a task
 tagged `process` (normally a `PX-nn` task) that goes through Plan → Implement → Review like any other.
 
 1. When the owner approves its code review, the Merge stage lands it on `main`.

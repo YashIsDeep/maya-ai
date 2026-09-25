@@ -6,9 +6,10 @@
 // 3. fast-forwards the base branch in the main checkout to the result.
 // Refuses rather than guesses: any unclean state fails the action with the reason.
 import { execFileSync, spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const { WM_REPO: repo, WM_BRANCH: branch, WM_BASE_BRANCH: base = "main", WM_WORKTREE: worktree } = process.env;
+const { WM_REPO: repo, WM_BRANCH: branch, WM_WORKTREE: worktree } = process.env;
+const base = process.env.WM_BASE_BRANCH || "main";
 
 const fail = (message) => {
   console.error(message);
@@ -36,7 +37,9 @@ if (merge.status !== 0) {
   );
 }
 
-const checks = spawnSync(process.execPath, [join(worktree, "scripts", "check.mjs")], { cwd: worktree, stdio: "inherit" });
+// main's copy of the runner, pointed at the worktree (see review-prep.mjs).
+const checkScript = fileURLToPath(new URL("../check.mjs", import.meta.url));
+const checks = spawnSync(process.execPath, [checkScript, worktree], { cwd: worktree, stdio: "inherit" });
 if (checks.status !== 0) {
   fail(`Checks fail on ${branch} with the latest ${base} merged in. Add a Rework note and drag the task back to Implement.`);
 }

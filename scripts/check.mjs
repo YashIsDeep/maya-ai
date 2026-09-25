@@ -5,12 +5,13 @@
 // registers its checks in a `maya.checks.json` at its root, e.g.
 //   [{ "name": "coordinator tests", "command": "npm test" }, { "name": "typecheck", "command": "npx tsc --noEmit" }]
 // Commands run through the shell with that package directory as the working directory.
+// `node scripts/check.mjs [root]` checks another tree (a task worktree) with this copy of the runner.
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = process.argv[2] ? resolve(process.argv[2]) : resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SKIP = new Set([".git", ".agentify", "node_modules", ".dart_tool", "build", "dist", "coverage"]);
 
 /** Registration files at most three levels down (root, packages/x, apps/x/y). */

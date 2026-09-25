@@ -5,6 +5,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const worktree = process.env.WM_WORKTREE;
 if (!worktree) {
@@ -26,10 +27,12 @@ writeFileSync(join(out, "commits.txt"), git("log", "--format=%h %s", `${mergeBas
 writeFileSync(join(out, "diffstat.txt"), git("diff", "--stat", mergeBase, "HEAD") || "(empty diff)\n");
 writeFileSync(join(out, "diff.patch"), git("diff", mergeBase, "HEAD"));
 
+// main's copy of the check runner, pointed at the worktree: a branch can add checks but can't
+// rewrite the runner that judges it.
 let checks = "none";
-const checkScript = join(worktree, "scripts", "check.mjs");
+const checkScript = fileURLToPath(new URL("../check.mjs", import.meta.url));
 if (existsSync(checkScript)) {
-  const run = spawnSync(process.execPath, [checkScript], {
+  const run = spawnSync(process.execPath, [checkScript, worktree], {
     cwd: worktree,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -41,7 +44,7 @@ if (existsSync(checkScript)) {
     `result: ${checks} (exit ${run.status ?? run.signal})\n\n${run.stdout ?? ""}\n${run.stderr ?? ""}${run.error ? `\n${run.error}` : ""}`,
   );
 } else {
-  writeFileSync(join(out, "checks.txt"), "result: none (scripts/check.mjs is missing)\n");
+  writeFileSync(join(out, "checks.txt"), `result: none (${checkScript} is missing)\n`);
 }
 
 // Again after the checks: a check that rewrites tracked files (lockfiles, generated registrants)
