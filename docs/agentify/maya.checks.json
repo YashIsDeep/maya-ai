@@ -1,0 +1,1 @@
+[{ "name": "smoke sentence", "command": "node smoke-check.mjs" }]
