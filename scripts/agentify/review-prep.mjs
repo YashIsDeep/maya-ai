@@ -1,11 +1,16 @@
 // Prepares .agentify/review/ in the task worktree for the read-only Opus reviewer, which can read
-// files but cannot run git or tests. Run by the "Prepare review" shell action (Review stage).
+// files but cannot run git or tests. Run by the "Prepare review" shell action (Review stage) from the
+// main checkout, against the task worktree named by WM_WORKTREE; the checks are the task branch's own.
 // Never fails on a red check: the reviewer reports it, and the owner decides at the gate.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const worktree = process.env.WM_WORKTREE || process.cwd();
+const worktree = process.env.WM_WORKTREE;
+if (!worktree) {
+  console.error("WM_WORKTREE must be set; this runs from the Agentify Review stage.");
+  process.exit(1);
+}
 const base = process.env.WM_BASE_BRANCH || "main";
 const out = join(worktree, ".agentify", "review");
 mkdirSync(out, { recursive: true });
@@ -14,12 +19,12 @@ const git = (...args) =>
   execFileSync("git", args, { cwd: worktree, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
 
 const mergeBase = git("merge-base", base, "HEAD").trim();
-const uncommitted = git("status", "--porcelain", "--untracked-files=all").trim();
+const status = () => git("status", "--porcelain", "--untracked-files=all").trim();
+const before = status();
 
 writeFileSync(join(out, "commits.txt"), git("log", "--format=%h %s", `${mergeBase}..HEAD`) || "(no commits)\n");
 writeFileSync(join(out, "diffstat.txt"), git("diff", "--stat", mergeBase, "HEAD") || "(empty diff)\n");
 writeFileSync(join(out, "diff.patch"), git("diff", mergeBase, "HEAD"));
-writeFileSync(join(out, "uncommitted.txt"), uncommitted ? `${uncommitted}\n` : "(clean)\n");
 
 let checks = "none";
 const checkScript = join(worktree, "scripts", "check.mjs");
@@ -38,6 +43,15 @@ if (existsSync(checkScript)) {
 } else {
   writeFileSync(join(out, "checks.txt"), "result: none (scripts/check.mjs is missing)\n");
 }
+
+// Again after the checks: a check that rewrites tracked files (lockfiles, generated registrants)
+// would otherwise only surface when Merge refuses the dirty worktree.
+const after = status();
+const uncommitted = before || after;
+writeFileSync(
+  join(out, "uncommitted.txt"),
+  !uncommitted ? "(clean)\n" : `before checks:\n${before || "(clean)"}\n\nafter checks:\n${after || "(clean)"}\n`,
+);
 
 console.log(`base ${base} @ ${mergeBase.slice(0, 10)} · checks ${checks} · uncommitted ${uncommitted ? "yes" : "no"}`);
 if (process.env.WM_OUTPUT_FILE) {
