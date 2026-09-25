@@ -410,5 +410,6 @@ tagged `process` (normally a `PX-nn` task) that goes through Plan → Implement 
   Agentify, then run **Test** on its Agents page.
 - **Not installed yet:** the Flutter/Dart SDK (M0-03), mobile SDKs (M0-05) and `gh`. Node 24, git and
   JDK 21 are present.
-- **Codex `ask_user`:** the tool timeout is raised, but it has not been tested live yet. M0-00 tests it
-  and records the result here.
+- **Codex `ask_user`:** tested live on 2026-09-26 in M0-00. The owner answered after about 2 minutes; the
+  call survived that observed wait and returned the answer. The planned more-than-6-minute wait was
+  not exercised.
