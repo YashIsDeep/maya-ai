@@ -1,0 +1,11 @@
+# Agentify review scratch (written into task worktrees by scripts/agentify/review-prep.mjs)
+.agentify/
+
+node_modules/
+.dart_tool/
+build/
+dist/
+coverage/
+*.log
+.env
+.env.*
