@@ -1,38 +1,39 @@
-# Implementation: [PX-01] Tick skill
+﻿# Implementation: [M0-02] Create the TypeScript coordinator workspace
 
 ## Changes
 
-- Added `scripts/agentify/claims.mjs` for exclusive lease creation, generation locks, stale takeover,
-  token-checked heartbeats and release, and dead-generation cleanup.
-- Added `scripts/agentify/tick.mjs` with the `claim`, `watch`, `release`, `status`, and `candidates`
-  commands. Backlog claims and starts are serialized under the shared start lock. Watch uses SSE and
-  polling, and retries only interrupted runs or inactivity timeouts.
-- Added a fake Agentify HTTP server and race, ranking, readiness, tag, watch, and end-to-end tests.
-  Registered them in the root `maya.checks.json`.
-- Added the `/agentify-tick` project skill and updated `docs/AGENTIFY_PROCESS.md` and
-  `docs/DECISIONS.md` with the approved text.
-
-## Agentify adapter
-
-The adapter currently follows the D4 expected mappings in the approved plan. The plan's Owner step 1
-read-only check is still pending through `ask_user`; no source under `C:\code\workflow-manager` or
-live Agentify endpoint has been accessed. Confirm the mappings and record any differences here before
-the implementation is considered complete.
+- Added a private npm workspaces root using Node 24, strict TypeScript 7.0.2, ES modules, Oxlint with tsgolint, and Prettier.
+- Added the empty `@maya/coordinator` application package and the `@maya/domain` source package, linked as a workspace dependency.
+- Added one built-in `node:test` test per package. The coordinator test imports the domain package by its workspace name.
+- Registered install, formatting, test, typecheck, and lint checks. Preserved the existing root and `docs/agentify` checks.
+- Added README build and test instructions and recorded the M0-02 owner decisions.
 
 ## Checks
 
-- `node scripts/check.mjs` — passed: 45 tick tests and the existing Agentify smoke check (2/2 checks).
-- The concurrency race selection passed five consecutive runs. Each run covered fresh lease races,
-  stale takeover races, forced interleaving, concurrent CLI claims, and the Backlog start-slot race.
+- `npm install -D -E typescript@7.0.2 oxlint@1.85.0 oxlint-tsgolint@7.0.2003 prettier@3.9.9 @types/node@24` — passed; the exact `@types/node` version resolved to 24.19.0.
+- `npm run format` — passed.
+- `node scripts/check.mjs` — passed, 10/10 registered checks. This includes two existing checks (the root Agentify tick tests and the `docs/agentify` smoke sentence) and eight M0-02 checks. The tick suite passed all 45 tests.
+
+## Negative verification
+
+Each temporary fault was reverted immediately after its check. None is committed.
+
+- Added an un-awaited `Promise.resolve()` to `packages/domain/src/index.ts`; `npm run lint --workspace @maya/domain` failed at `src/index.ts:4:1` with `typescript(no-floating-promises): Promises must be awaited`.
+- Added `const x: number = "a";` to `packages/domain/src/index.ts`; `npm run typecheck --workspace @maya/domain` failed at `src/index.ts(4,7)` with `TS2322: Type 'string' is not assignable to type 'number'.`
+- Removed required spaces from the domain export; `npm run format:check` failed and reported `[warn] packages/domain/src/index.ts` and `Code style issues found in the above file.`
+- Changed the coordinator assertion to expect `"wrong"`; `npm test --workspace @maya/coordinator` failed at `src\workspace.test.ts:5:1` with `AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:`.
+- Restored all four files and confirmed `npm run format:check` passes.
+
+## Assumptions
+
+- `@types/node` 24.19.0 is the newest published 24.x version available to the pinned install, saved exactly.
+- The root Node engine range is `^24.0.0`, and Prettier uses its defaults with `printWidth` 120, as specified in the approved plan.
+- The existing registered checks remain in place; the actual complete check count is 10/10.
 
 ## Owner steps
 
-- Requested approval for the plan's read-only source/API check through `ask_user`; no approval or
-  refusal has been returned yet, so the check has not been performed.
-- No live `/agentify-tick` run was performed. The skill can be exercised from `C:\code\maya` after
-  Merge places it on `main`, as the approved plan specifies.
+None.
 
-## Assumptions and follow-up
+## Follow-up
 
-- No implementation assumptions beyond the approved plan. Complete the D4 source/API verification
-  and update this report with the confirmed field mappings before handoff.
+None.
