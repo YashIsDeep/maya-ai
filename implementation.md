@@ -37,3 +37,36 @@ None.
 ## Follow-up
 
 None.
+
+---
+
+# Implementation: [SP-04] Spike: choose the cloud AI processor
+
+## Changes
+
+- Added the approved provider comparison in `docs/spike/cloud-ai.md` and appended the three owner decisions to `docs/DECISIONS.md`.
+- Added the Claude pricing, fictional plan/draft/revise fixture, pure measurement helpers, live/dry-run CLI, 16 offline tests, and the registered check in `spikes/cloud-ai/`.
+- Generated and committed `docs/spike/cloud-ai-measurements.md` in dry-run mode.
+- Left both blueprints unchanged.
+
+## Checks
+
+- `node spikes/cloud-ai/measure.mjs --dry-run` — passed; generated the dry-run report without reading a key or making API calls.
+- `node --test spikes/cloud-ai/test/cloud-ai.test.mjs` — passed, 16/16.
+- `node scripts/check.mjs` — passed, 11/11 registered checks.
+- Confirmed `.env` is not tracked, the committed diff contains no forbidden key-prefix string, and the blueprints have no diff from `main`.
+
+## Assumptions
+
+- Provider terms and prices are those in the approved report, sourced as of 26 September 2026; they must be rechecked before beta and public release.
+- The API key, when used, is the owner's Claude Console key under Anthropic's Commercial Terms.
+- Answer quality remains for FD-15 and the private beta.
+
+## Owner steps
+
+- Asked through Agentify whether `MAYA_CLOUD_AI_API_KEY` is set in the task worktree's `.env`. No answer arrived during the first extended wait, so I repeated the same question once as required by §3.2; the repeated request also remained unanswered beyond the expected timeout window.
+- Did not inspect `.env`, request approval for the live run, or make any provider calls. The measurements file therefore remains the generated dry-run report.
+
+## Follow-up
+
+- After the owner answers the key-status question, request separate approval for the exact live command in the approved plan. If approved, run it unchanged; if it fails, retain the dry-run report and record the redacted error as specified.
