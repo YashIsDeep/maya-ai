@@ -1,0 +1,4 @@
+[
+  { "name": "client analyze", "command": "flutter analyze --fatal-infos" },
+  { "name": "client tests", "command": "flutter test" }
+]
