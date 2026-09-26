@@ -1,0 +1,6 @@
+[
+  {
+    "name": "agentify tick tests",
+    "command": "node --test \"scripts/agentify/test/*.test.mjs\""
+  }
+]
