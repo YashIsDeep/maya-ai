@@ -1,5 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.jpg binary
+*.ico binary
 # Parallel tasks each append rows; keep both sides.
 docs/DECISIONS.md merge=union
