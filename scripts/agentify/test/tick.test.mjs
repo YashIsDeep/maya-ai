@@ -316,6 +316,7 @@ test("13. Concurrent CLI claimers take over one expired lease exactly once", asy
   const winners = results.filter(({ result }) => result.taskId);
   assert.equal(winners.length, 1);
   assert.equal(winners[0].result.taskId, task.id);
+  assert.equal(winners[0].result.tookOver, true);
   assert.equal(readLease(task.id).lease.token, winners[0].result.token);
 });
 
