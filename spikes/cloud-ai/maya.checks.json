@@ -1,0 +1,1 @@
+[{ "name": "cloud-ai spike tests", "command": "node --test test/cloud-ai.test.mjs" }]
