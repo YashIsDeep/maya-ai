@@ -24,6 +24,7 @@ source of truth for *how work on Maya gets done*.
 | **Maya repo** | `C:\code\maya`, branch `main`. Each task works on its own branch `wm/<task-slug>`, in its own git worktree under `%USERPROFILE%\.workflow-manager\worktrees\`. |
 | **Workflow** | **Maya Build** (the only workflow Maya tasks use): Backlog → Plan → Implement → Review → Merge → Done. It is defined as code in [`scripts/agentify/setup-workflow.mjs`](../scripts/agentify/setup-workflow.mjs). |
 | **Task catalogue** | The Maya Build board in Agentify is the live catalogue. [`scripts/agentify/seed-tasks.mjs`](../scripts/agentify/seed-tasks.mjs) records the initial plan it was seeded from. |
+| **Tick skill** | `/agentify-tick`, a Claude Code project skill ([`.claude/skills/agentify-tick/SKILL.md`](../.claude/skills/agentify-tick/SKILL.md)), run in a chat opened on `C:\code\maya`. Each tick claims one open Maya Build task through [`scripts/agentify/tick.mjs`](../scripts/agentify/tick.mjs), drives it to its next stage and releases it (§4.1 Claims, §6.5). A claimed task carries the tag `watched`. `/loop /agentify-tick` keeps ticking. |
 | **Product truth** | [`MAYA_PRODUCT_BLUEPRINT.md`](../MAYA_PRODUCT_BLUEPRINT.md), [`MAYA_TECHNICAL_BLUEPRINT.md`](../MAYA_TECHNICAL_BLUEPRINT.md) |
 | **Decision log** | [`docs/DECISIONS.md`](DECISIONS.md): every owner decision, with its date and the task that asked for it. |
 
@@ -133,6 +134,7 @@ every approval, send-back and answer appears on the task's timeline.
 |---|---|
 | Find the workflow and stage ids | `GET /api/workflows` (Maya Build) |
 | List tasks, read a task | `GET /api/tasks`, `GET /api/tasks/:id` |
+| Watch for task changes | `GET /api/events` (SSE; the tick filters events to its claimed task) |
 | Read artifacts and transcripts | `GET /api/tasks/:id/artifacts`, `GET /api/tasks/:id/artifact?name=plan.md`, `GET /api/runs/:id/log` |
 | Create a task | `POST /api/tasks` `{workflowId, title, description, repoPath: "C:\\code\\maya", baseBranch: "main", tags}`, which lands in Backlog |
 | Edit task text | `PATCH /api/tasks/:id` with `title`, `description` or `tags` only |
@@ -140,6 +142,27 @@ every approval, send-back and answer appears on the task's timeline.
 | Retry a transient failure | `POST /api/runs/:id/retry`, without overrides and once per failure: for an inactivity timeout, `interrupted`, or a crash unrelated to the change |
 | Try now | `POST /api/runs/:id/resume` on a `quota-wait` run |
 | Apply an approved workflow change | `node scripts/agentify/setup-workflow.mjs`, only as §8 describes |
+
+**Claims.** An orchestrator acts on a task only while it holds that task's claim, and never acts on a
+task another chat has claimed. Ticks take claims with `scripts/agentify/tick.mjs`:
+
+- A claim is a lease file `<taskId>.json` in `%USERPROFILE%\.workflow-manager\maya-claims\`. The
+  folder is shared by every chat on the machine. The lease expires 10 minutes after its last
+  heartbeat; a watching tick heartbeats every minute.
+- A lease is created only by an atomic exclusive create, so exactly one chat wins. An expired lease
+  may be taken over, but only under a lock on that lease generation, created with an atomic `mkdir`,
+  after re-reading the lease to confirm it is still the same expired one. Heartbeat and release
+  work only with the matching token, under the same lock. A lock is removed only by its holder, or
+  once its lease generation is gone for good.
+- The token that `claim` prints is the only capability for watching and releasing a claim. Claiming
+  adds the tag `watched` to the task; releasing removes it. `tick.mjs status` and `claim` remove a
+  leftover `watched` tag from any task with no live claim.
+- Claiming a Backlog task and starting it both happen under one machine-wide start lock, so ticks
+  never take Maya past 3 active tasks.
+- While holding a claim, a tick does only two things. It starts the task when it is a ready Backlog
+  task (`move` to Plan with `runActions`). It retries, once and without overrides, a run that failed
+  on an inactivity timeout or was interrupted, unless that run is itself a retry. The claim records
+  each retried run, so it is never retried twice. Everything else goes to the owner.
 
 ### 4.2 Forbidden for every agent
 
@@ -325,11 +348,24 @@ Reply with **only** this document. It is saved as `review.md`.
   happen in Agentify.
 - **Starting tasks.**
   - The owner can start any task by dragging it from Backlog to Plan. You start tasks only when the
-    owner has told you to work the queue.
-  - Start only *ready* tasks: every ID on the task's **Depends on** line is in Done. Prefer the
-    lowest ID.
-  - Keep at most **3** Maya tasks in Plan, Implement or Review at once. Agentify runs at most three
-    agents at a time, and a run waiting on `ask_user` holds its slot.
+    owner has told you to work the queue. **Running `/agentify-tick` is that instruction, for one
+    task per tick.**
+  - Start only *ready* tasks: every ID on the task's **Depends on** line belongs to a task in Done or
+    archived. A task with no Depends on line, with neither IDs nor "none" on it, or that names an ID
+    no task has, is not ready. Prefer the oldest task, which is catalogue order.
+  - Keep at most **3** Maya tasks in Plan, Implement or Review at once. Backlog tasks that a tick has
+    claimed in order to start them count toward the 3. Agentify runs at most three agents at a time,
+    and a run waiting on `ask_user` holds its slot.
+- **Ticks.** A tick ([`.claude/skills/agentify-tick/SKILL.md`](../.claude/skills/agentify-tick/SKILL.md))
+  works like this:
+  - It claims the open task furthest along that no other chat has claimed: Merge, then Review,
+    Implement, Plan, then a ready Backlog task. Among tasks in the same stage, the oldest goes first.
+  - It watches that task until it reaches its next stage, moves back, or leaves the board, then
+    releases the claim.
+  - While watching, it does only what §4.1 *Claims* allows. It points the owner to every question,
+    gate and failure in Agentify, and keeps watching until the owner acts.
+  - Never act on a task another chat has claimed. Such a task carries the tag `watched`, and
+    `tick.mjs status` lists it.
 - **Splits.** After the owner approves a plan with a *Split proposal*:
   1. Create each child task as `[<parent ID><letter>] …`, with its own Depends on line, in Backlog.
   2. Retitle the parent to the slice it actually implements.
@@ -375,7 +411,8 @@ Reply with **only** this document. It is saved as `review.md`.
 ## 8. Changing the process or the workflow
 
 This document, `setup-workflow.mjs` (the Maya Build workflow: stages, actions, prompts, stage
-defaults), `seed-tasks.mjs`, `scripts/check.mjs`, and the scripts under `scripts/agentify/` change only through a task
+defaults), `seed-tasks.mjs`, `scripts/check.mjs`, the scripts under `scripts/agentify/`, and the
+tick skill in `.claude/skills/agentify-tick/` change only through a task
 tagged `process` (normally a `PX-nn` task) that goes through Plan → Implement → Review like any other.
 
 1. When the owner approves its code review, the Merge stage lands it on `main`.
