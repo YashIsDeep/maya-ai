@@ -1,0 +1,14 @@
+[
+  {
+    "name": "coordinator tests",
+    "command": "npm test"
+  },
+  {
+    "name": "coordinator typecheck",
+    "command": "npm run typecheck"
+  },
+  {
+    "name": "coordinator lint",
+    "command": "npm run lint"
+  }
+]

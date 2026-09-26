@@ -1,0 +1,14 @@
+[
+  {
+    "name": "domain tests",
+    "command": "npm test"
+  },
+  {
+    "name": "domain typecheck",
+    "command": "npm run typecheck"
+  },
+  {
+    "name": "domain lint",
+    "command": "npm run lint"
+  }
+]
