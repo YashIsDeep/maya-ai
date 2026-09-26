@@ -1,0 +1,10 @@
+# Prettier covers the TypeScript workspace only; docs, blueprints and scripts/ keep their own formatting.
+/*
+!/coordinator/
+!/packages/
+!/package.json
+!/tsconfig.base.json
+!/.oxlintrc.json
+!/.prettierrc.json
+!/maya.checks.json
+!/README.md

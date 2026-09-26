@@ -1,5 +1,13 @@
 [
   {
+    "name": "install dependencies (npm ci, runs first)",
+    "command": "npm ci"
+  },
+  {
+    "name": "workspace formatting",
+    "command": "npm run format:check"
+  },
+  {
     "name": "agentify tick tests",
     "command": "node --test \"scripts/agentify/test/*.test.mjs\""
   }
