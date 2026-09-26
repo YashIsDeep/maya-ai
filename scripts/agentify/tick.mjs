@@ -61,8 +61,8 @@ async function apiRequest(method, path, body) {
   }
 }
 
-// Agentify adapter: API field names and transport stay in this section. The live source/API uses
-// currentStageId, millisecond timestamps, status=active|archived list filters, and visit-local runs.
+// Agentify adapter: API field names and transport stay in this section. The mapping follows the
+// approved D4 expectations; source/API verification is pending the owner's approval.
 export async function listWorkflows() {
   return apiRequest("GET", "/workflows");
 }
