@@ -70,3 +70,36 @@ None.
 ## Follow-up
 
 - After the owner answers the key-status question, request separate approval for the exact live command in the approved plan. If approved, run it unchanged; if it fails, retain the dry-run report and record the redacted error as specified.
+
+---
+
+# Implementation: [M0-04] Define domain object schemas, state machines and the API contract
+
+## Changes
+
+- Added Zod 4.6.5 to `@maya/domain` and exported strict schemas for the 15 domain objects, shared scalars, opaque IDs, and 1.0-only access and operation values.
+- Added task and proposal state machines with their 23 and 8 allowed edges, transition assertion helpers, and immutable proposal approval gating.
+- Added fixtures and tests for required fields, strict unknown-key rejection, JSON Schema export, deferred-capability rejection, timestamp and reference formats, and all illegal state/trigger combinations.
+- Added `docs/design/api-contract.md` with the 32 logical endpoints, actor allowlists, request and response shapes, endpoint-caused transitions, the no-send-bypass rule, deferred capabilities, and the CL-01 Dart generation plan.
+- Re-exported the domain schemas and machines from the package entry point.
+
+## Checks
+
+- `npm run format` — passed.
+- `node scripts/check.mjs` — passed, 11/11 registered checks, including the domain tests, typecheck and lint.
+- Domain test suite — passed, 27/27 tests.
+
+## Assumptions and implementation notes
+
+- Used the approved plan's Zod 4.6.5 pin and schema decisions. No new product assumptions were made.
+- The branded-ID helper accepts a brand literal parameter so TypeScript can infer the brand while satisfying the repository's type-aware lint rules.
+- No `docs/DECISIONS.md` entry was needed.
+
+## Owner steps
+
+None.
+
+## Follow-up
+
+- M0-04a adds request, response and view schemas plus the endpoint registry and actor allowlists.
+- CL-01 emits JSON Schema and generates the Dart client types described in the API contract.
