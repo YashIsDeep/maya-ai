@@ -10,5 +10,8 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p .",
     "lint": "oxlint --type-aware --max-warnings 0 -c ../../.oxlintrc.json"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
   }
 }
