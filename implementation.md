@@ -103,3 +103,11 @@ None.
 
 - M0-04a adds request, response and view schemas plus the endpoint registry and actor allowlists.
 - CL-01 emits JSON Schema and generates the Dart client types described in the API contract.
+
+## Review corrections
+
+- Restored `docs/design/api-contract.md` to the approved plan text. The first commit had rewritten its code spans: request and response shapes lost their backticks, and ordinary words such as "failed" and "approved" gained them.
+- `StateMachine.assert` no longer depends on `this`, so a detached `assert` still throws `IllegalTransitionError` (new test). Its methods are typed `this: void`.
+- The illegal-transition tests now check against their own literal edge tables and the state enums, not the machine under test.
+- `Task.phase`, `Execution.receipt`, `Execution.claim.workerId` and `ActivityEvent.proposal.version` now use the plan's named primitives (`CodeName`, `ProviderId`, `ID_PATTERN`, `Version`). Behaviour is unchanged.
+- `node scripts/check.mjs` passed, 11/11; the domain suite has 28 tests.
