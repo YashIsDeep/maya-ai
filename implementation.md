@@ -12,27 +12,27 @@
 
 The official archive URL was `https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_3.47.5-stable.zip`. Its HTTP `Content-Length` was 1,933,437,428 bytes. The SHA-256 after download was `0ccd71931f49c2fbe394b1eeb6d79af3d624058a043ea0d03d34160581624fb8`; it matched both the live `releases_windows.json` entry and the approved plan. The archive was extracted to the approved SDK folder and removed from temp.
 
-The initial doctor report identified Windows 10 Pro 22H2, Flutter 3.47.5 stable, Dart 3.13.4 and DevTools 2.60.0. Chrome and the Windows device were available. Android SDK was absent as expected for M0-05, and Visual Studio was not yet installed. After the approved Build Tools install, the Visual Studio section was green: Visual Studio Build Tools 2026 version 18.10.12217.157 and Windows 10 SDK 10.0.26100.0. Android SDK remained absent. The existing Agentify process still reported Flutter and Dart missing from its PATH because it predates the HKCU PATH update; the new Agentify PATH was not verified in this run.
+The initial doctor report identified Windows 10 Pro 22H2, Flutter 3.47.5 stable, Dart 3.13.4 and DevTools 2.60.0. Chrome and the Windows device were available. Android SDK was absent as expected for M0-05, and Visual Studio was not yet installed. After the approved Build Tools install, the Visual Studio section was green: Visual Studio Build Tools 2026 version 18.10.12217.157 and Windows 10 SDK 10.0.26100.0. Android SDK remained absent. The first Agentify process predated the HKCU PATH update and could not resolve Flutter; the restart was still outstanding at the end of that attempt.
 
 The Build Tools bootstrapper's Authenticode status was `Valid`, with signer subject `CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US`. The approved installer command exited 0.
 
 ## Owner steps
 
-Each approval below arrived through `ask_user` before its corresponding action.
+Install steps 1–4 were performed after their corresponding `ask_user` approvals; the restart and launch confirmation are recorded individually below.
 
 1. **Flutter SDK download, verification and extraction.** The approval question named the official URL, 1,933,437,428-byte size, expected hash, target folder and first-use artifact downloads. Owner answer: **“Approve this exact install.”** The archive hash matched the live release list and the plan.
 2. **User PATH.** The approval question named `C:\Users\yashp\develop\flutter\bin`, HKCU, no admin rights, raw-entry preservation and the environment-change broadcast. Owner answer: **“Approve this PATH update.”** The path was prepended as `REG_EXPAND_SZ`, preserving unexpanded entries, and `WM_SETTINGCHANGE` was broadcast.
 3. **Analytics.** The approval question named the full-path `flutter --disable-analytics` and `dart --disable-analytics` commands and their per-user config writes. Owner answer: **“Approve both commands.”** Both commands succeeded.
 4. **Visual Studio C++ toolchain.** After doctor reported Visual Studio missing, the approval question named `https://aka.ms/vs/stable/vs_BuildTools.exe`, the approved C++ workload arguments, the several-GB download and UAC prompt. Owner answer: **“Approve this Build Tools install.”** The signed bootstrapper ran with `--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --wait --norestart` and exited 0. The 2022 fallback was not needed.
-5. **Agentify restart.** The owner skipped the restart question. The run survived, so I followed the plan's surviving-run path and added the SDK `bin` only to local command environments. Agentify was not restarted by this run. Its Review-stage `.agentify/review/checks.txt` must still show both client checks passing after the owner restarts Agentify; local green checks do not prove the Agentify PATH.
+5. **Agentify restart.** The owner skipped the original restart question. That run survived, so I followed the plan's surviving-run path and added the SDK `bin` only to local command environments; those checks did not prove Agentify's PATH. After the Review finding requested a restart before retry, this rework Implement process inherited Flutter on its PATH, as recorded below. The next Review-stage `.agentify/review/checks.txt` remains the workflow evidence for both client checks under the restarted Agentify process.
 6. **Windows launch confirmation.** After the process assertion, the owner answered **“Yes”** to seeing a window titled `Maya` with `Maya` in the middle.
 
 ## Checks and Windows launch
 
 - `flutter analyze --fatal-infos` — passed: no issues found.
 - `flutter test` — passed: the `MayaApp` widget test passed.
-- `node scripts/check.mjs` — passed all 12 checks, including `client analyze` and `client tests`, the existing smoke check, root formatting, coordinator checks and domain checks. This was run with the surviving-run local Flutter PATH adjustment.
-- The final check run began after `flutter clean` removed `client/.dart_tool`; all 12 checks passed and `git status --porcelain --untracked-files=all` was empty afterward.
+- `node scripts/check.mjs` — the initial implementation run recorded 12/12 checks, including `client analyze` and `client tests`; it used the surviving-run local Flutter PATH adjustment. The rework check run is recorded below.
+- The initial clean-state check run began after `flutter clean` removed `client/.dart_tool`; it recorded 12/12 checks and an empty `git status --porcelain --untracked-files=all` afterward.
 - `flutter build windows --debug` — succeeded. Output tail:
 
   ```text
@@ -45,11 +45,20 @@ Each approval below arrived through `ask_user` before its corresponding action.
 ## Assumptions and follow-up
 
 - The owner had delegated the reversible SDK, toolchain, analytics and organization-ID choices to the planner's recommendations. The recorded SDK is Flutter 3.47.5 stable / Dart 3.13.4, analytics are off, and the organization ID is `com.yashgupta`.
-- The run did not restart Agentify after the PATH update. Before the Review checks can prove the new PATH, the owner needs to restart Agentify from a fresh terminal and the Review artifact must show `client analyze` and `client tests` passing.
 - Android SDK/device setup is M0-05. iOS and macOS builds need a Mac with Xcode, and Linux builds need a Linux host; those owner steps remain later work as documented in `client/README.md`.
 
+## Rework verification (2026-09-27)
 
-﻿# Implementation: [M0-02] Create the TypeScript coordinator workspace
+- `where.exe flutter` resolved `C:\Users\yashp\develop\flutter\bin\flutter` and `flutter.bat` from the process's inherited PATH. `flutter --version --machine` reported Flutter 3.47.5 stable, Dart 3.13.4, and `flutterRoot` `C:\Users\yashp\develop\flutter`. No session-local PATH prepend was used.
+- `flutter doctor -v` reported Windows 10 Pro 22H2, Flutter 3.47.5 stable, Dart 3.13.4, and a green Windows section: Visual Studio Build Tools 2026 version 18.10.12217.157 with Windows 10 SDK 10.0.26100.0. Android SDK remains absent, as expected for M0-05.
+- Compared `client/analysis_options.yaml` with `5a8b912:client/analysis_options.yaml`; the exclude block matches the generated file exactly, so it was left unchanged.
+- `flutter clean` removed `client/.dart_tool`. Then `node scripts/check.mjs` passed all 13 registered checks, including `client analyze` (`No issues found!`) and `client tests` (`All tests passed!`). The check runner resolved Flutter without any session PATH adjustment.
+- The earlier Review artifact's 11/13 result captured its stale PATH. This rework run now has inherited Flutter resolution; the fresh Review run should record both client checks passing in `.agentify/review/checks.txt`.
+
+---
+
+
+# Implementation: [M0-02] Create the TypeScript coordinator workspace
 
 ## Changes
 
