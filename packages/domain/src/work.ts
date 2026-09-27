@@ -1,5 +1,6 @@
 import * as z from "zod";
 import {
+  CodeName,
   ConversationId,
   DeviceId,
   DraftId,
@@ -77,10 +78,7 @@ export const Task = z.strictObject({
   ownerId: OwnerId,
   conversationId: ConversationId,
   status: TaskState,
-  phase: z
-    .string()
-    .regex(/^[a-z][a-z0-9_]{0,63}$/)
-    .nullable(),
+  phase: CodeName.nullable(),
   inputTurnIds: z.array(TurnId),
   sourceIds: z.array(SourceId),
   effectivePolicy: z.strictObject({

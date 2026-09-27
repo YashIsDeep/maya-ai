@@ -9,8 +9,10 @@ import {
   DeviceId,
   ExecutionId,
   GrantVersionRef,
+  ID_PATTERN,
   OwnerId,
   ProposalId,
+  ProviderId,
   Sha256Digest,
   SessionId,
   SourceId,
@@ -85,7 +87,7 @@ export const Execution = z.strictObject({
   dispatchDeadline: Timestamp,
   claim: z
     .strictObject({
-      workerId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+      workerId: z.string().regex(ID_PATTERN),
       claimedAt: Timestamp,
     })
     .nullable(),
@@ -94,8 +96,8 @@ export const Execution = z.strictObject({
   correlationId: CorrelationId,
   receipt: z
     .strictObject({
-      providerMessageId: z.string().regex(/^[A-Za-z0-9_-]{1,255}$/),
-      providerThreadId: z.string().regex(/^[A-Za-z0-9_-]{1,255}$/),
+      providerMessageId: ProviderId,
+      providerThreadId: ProviderId,
       acceptedAt: Timestamp,
     })
     .nullable(),

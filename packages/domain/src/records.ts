@@ -16,6 +16,7 @@ import {
   TaskId,
   Timestamp,
   ObjectRef,
+  Version,
 } from "./primitives.ts";
 
 export const SyncEvent = z.strictObject({
@@ -45,7 +46,7 @@ export const ActivityEvent = z.strictObject({
   proposal: z
     .strictObject({
       id: ProposalId,
-      version: z.int().min(1),
+      version: Version,
     })
     .nullable(),
   result: z.enum(["allowed", "denied", "succeeded", "failed", "outcome_unknown", "unresolved"]),
