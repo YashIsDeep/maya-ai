@@ -82,15 +82,14 @@ test("task transition table matches the §3 state diagram", () => {
 });
 
 test("every illegal task state and trigger triple is rejected", () => {
-  const triggers = [...new Set(TASK_MACHINE.transitions.map((edge) => edge.trigger))];
+  const expected = new Set(EXPECTED_TASK_TRANSITIONS.map(edgeKey));
+  const triggers = [...new Set(EXPECTED_TASK_TRANSITIONS.map((edge) => edge[2]))];
   let allowedCount = 0;
 
-  for (const from of TASK_MACHINE.states) {
-    for (const to of TASK_MACHINE.states) {
+  for (const from of TaskState.options) {
+    for (const to of TaskState.options) {
       for (const trigger of triggers) {
-        const shouldAllow = TASK_MACHINE.transitions.some(
-          (edge) => edge.from === from && edge.to === to && edge.trigger === trigger,
-        );
+        const shouldAllow = expected.has(edgeKey([from, to, trigger]));
         assert.equal(TASK_MACHINE.allows(from, to, trigger), shouldAllow);
         if (shouldAllow) {
           allowedCount += 1;
@@ -120,6 +119,12 @@ test("a legal task pair with the wrong trigger is rejected", () => {
     () => TASK_MACHINE.assert("awaiting_approval", "preparing", "policy_or_precondition_changed"),
     IllegalTransitionError,
   );
+});
+
+test("a detached assert still rejects illegal transitions", () => {
+  const { assert: assertTask } = TASK_MACHINE;
+  assert.doesNotThrow(() => assertTask("approved", "executing", "dispatch_claimed"));
+  assert.throws(() => assertTask("outcome_unknown", "executing", "dispatch_claimed"), IllegalTransitionError);
 });
 
 test("unknown task states and triggers are rejected", () => {
@@ -182,15 +187,14 @@ test("proposal transition table matches the immutable-version lifecycle", () => 
 });
 
 test("every illegal proposal state and trigger triple is rejected", () => {
-  const triggers = [...new Set(PROPOSAL_MACHINE.transitions.map((edge) => edge.trigger))];
+  const expected = new Set(EXPECTED_PROPOSAL_TRANSITIONS.map(edgeKey));
+  const triggers = [...new Set(EXPECTED_PROPOSAL_TRANSITIONS.map((edge) => edge[2]))];
   let allowedCount = 0;
 
-  for (const from of PROPOSAL_MACHINE.states) {
-    for (const to of PROPOSAL_MACHINE.states) {
+  for (const from of ProposalStatus.options) {
+    for (const to of ProposalStatus.options) {
       for (const trigger of triggers) {
-        const shouldAllow = PROPOSAL_MACHINE.transitions.some(
-          (edge) => edge.from === from && edge.to === to && edge.trigger === trigger,
-        );
+        const shouldAllow = expected.has(edgeKey([from, to, trigger]));
         assert.equal(PROPOSAL_MACHINE.allows(from, to, trigger), shouldAllow);
         if (shouldAllow) {
           allowedCount += 1;

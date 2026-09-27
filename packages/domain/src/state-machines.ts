@@ -94,8 +94,8 @@ export interface StateMachine<S extends string, T extends string> {
   readonly initial: S;
   readonly terminal: readonly S[];
   readonly transitions: readonly Transition<S, T>[];
-  allows(from: string, to: string, trigger: string): boolean;
-  assert(from: string, to: string, trigger: string): void;
+  allows(this: void, from: string, to: string, trigger: string): boolean;
+  assert(this: void, from: string, to: string, trigger: string): void;
 }
 
 export function defineMachine<S extends string, T extends string>(
@@ -122,19 +122,19 @@ export function defineMachine<S extends string, T extends string>(
   }
 
   const terminal = states.filter((state) => !transitions.some((transition) => transition.from === state));
+  const allows = (from: string, to: string, trigger: string): boolean =>
+    transitions.some(
+      (transition) => transition.from === from && transition.to === to && transition.trigger === trigger,
+    );
   return {
     name,
     states,
     initial,
     terminal,
     transitions,
-    allows(from, to, trigger) {
-      return transitions.some(
-        (transition) => transition.from === from && transition.to === to && transition.trigger === trigger,
-      );
-    },
+    allows,
     assert(from, to, trigger) {
-      if (!this.allows(from, to, trigger)) {
+      if (!allows(from, to, trigger)) {
         throw new IllegalTransitionError(name, from, to, trigger);
       }
     },
