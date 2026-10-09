@@ -16,6 +16,32 @@ source of truth for *how work on Maya gets done*.
 
 ---
 
+## Owner-authorized loop update — 27 September 2026
+
+This update supersedes the conflicting manual review, read-only code-reviewer, fresh-session-only,
+and review-report approval rules below. It is the owner's direct workflow change. All product,
+security, scope, owner-decision and merge checks remain in force.
+
+- Plan: Opus drafts and independently reviews the plan, sends corrections back to the author,
+  and reviews the corrected document again. The owner approves final `plan.md`.
+- Implement: GPT-6 Luna max implements the approved plan. In Review, Opus inspects and fixes
+  the implementation, then performs independent review. The owner approves final
+  `implementation.md` and the current diff, not a review report. Opus may edit, test and commit
+  scoped reviewer corrections in the task worktree.
+- CI: GPT-6 Luna max fixes failing registered checks and reruns them, with at most three
+  correction attempts. The check runner from the main checkout checks the task worktree.
+  The owner reviews `ci.md` and the final diff before the existing Merge stage runs.
+- Each loop defaults to three correction attempts; exhaustion is a failure requiring attention.
+  Internal corrections may resume the author/fixer session. Plan reviewers start fresh.
+  Request revision is supported: it updates the final work and reruns its loop.
+- The enclosing Agentify phase controls the role and output contract. Internal reviewers return
+  Agentify's structured verdict, not the older Markdown report formats in sections 6.2/6.4.
+  Old `plan-review.md` / `review.md` artifacts are historical, not current specifications.
+- The board is Backlog → Plan → Implement → Review → CI → Merge → Done. This setup does not
+  publish branches or run remote PR checks: no remote CI workflow is configured in the checkout.
+  Configure a publish/check command before enabling remote CI. CI never merges automatically.
+- Existing task-run snapshots remain unchanged. Updated actions apply on new stage visits.
+
 ## 1. The system
 
 | Thing | What it is |

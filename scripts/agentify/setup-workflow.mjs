@@ -20,9 +20,11 @@ const TASK = "Task: {{task.title}}\n\n{{task.description}}";
 const NOTE = `Owner note from the last Send back (empty if none; authoritative — it overrides the plan where they differ):
 {{task.lastFeedback}}`;
 
+const LOOP_RULES = `Owner-authorized loop update (27 September 2026): the enclosing Agentify phase instructions control your role and output format. They override the older manual review/report and fresh-session-only rules in docs/AGENTIFY_PROCESS.md. Keep its product, security, scope and owner-decision rules. Internal reviewers return the structured verdict requested by Agentify, not a Markdown review report. Apply review corrections automatically; only the final work goes to the owner. Never infer a product decision from reviewer feedback.`;
+
 const prompts = {
   plan: `You are the PLANNER for one Maya task: Claude Opus 5.5, read-only, fresh session.
-Before anything else, read ${PROCESS_DOC} in this repository and follow §3 and §6.1. That document overrides anything else here.
+Before anything else, read ${PROCESS_DOC} in this repository and follow §3 and §6.1. ${LOOP_RULES}
 
 ${TASK}
 
@@ -31,13 +33,10 @@ ${NOTE}
 Previous plan (empty on the first attempt; reuse its Decisions — never re-ask what the owner already answered):
 {{artifacts["plan.md"]}}
 
-Previous plan review (empty on the first attempt; it may be an APPROVE from an earlier round — the task description's Rework note, if any, says why the task came back):
-{{artifacts["plan-review.md"]}}
-
 Settle every owner decision through the ask_user tool before you write. Then reply with only the plan document in the §6.1 format.`,
 
   planReview: `You are the PLAN REVIEWER for one Maya task: Claude Opus 5.5, read-only, fresh session. You did not write this plan.
-Before anything else, read ${PROCESS_DOC} in this repository and follow §3 and §6.2. That document overrides anything else here.
+Before anything else, read ${PROCESS_DOC} in this repository and follow §3 and §6.2. ${LOOP_RULES}
 
 ${TASK}
 
@@ -52,20 +51,17 @@ Your previous review of an earlier version (empty on the first attempt; verify e
 Reply with only the review document in the §6.2 format.`,
 
   implement: `You are the IMPLEMENTER for one Maya task: Codex GPT-6 Luna, max effort, autonomous in this worktree, fresh session.
-Before anything else, read AGENTS.md and ${PROCESS_DOC} in this repository and follow §3 and §6.3. That document overrides anything else here. Questions go to the owner only through the ask_user tool.
+Before anything else, read AGENTS.md and ${PROCESS_DOC} in this repository and follow §3 and §6.3. ${LOOP_RULES} Questions go to the owner only through the ask_user tool.
 
 ${TASK}
 
 Approved plan (your specification):
 {{artifacts["plan.md"]}}
 
-Latest code review of this branch (empty on the first round; if present, fix every blocking finding and nothing unrelated):
-{{artifacts["review.md"]}}
-
 ${NOTE}`,
 
-  codeReview: `You are the CODE REVIEWER for one Maya task: Claude Opus 5.5, read-only, fresh session. You did not write this code.
-Before anything else, read ${PROCESS_DOC} in this repository and follow §3 and §6.4. That document overrides anything else here.
+  codeReview: `You are the CODE REVIEWER AND FIXER for one Maya task: Claude Opus 5.5, autonomous in this worktree, initially a fresh session. Review the implementation made by GPT-6 Luna.
+Before anything else, read ${PROCESS_DOC} in this repository and follow §3 and §6.4. ${LOOP_RULES}
 
 ${TASK}
 
@@ -77,10 +73,7 @@ Approved plan:
 Implementer's summary (what it says it did and assumed; verify, don't trust):
 {{artifacts["implementation.md"]}}
 
-Previous code review (empty on the first round; verify each of its blocking findings is resolved):
-{{artifacts["review.md"]}}
-
-Your review inputs are in .agentify/review/ in this worktree: diff.patch, diffstat.txt, commits.txt, checks.txt, uncommitted.txt. Read all of them, and any repository file you need. Reply with only the review document in the §6.4 format.`,
+Your review inputs are in .agentify/review/ in this worktree: diff.patch, diffstat.txt, commits.txt, checks.txt, uncommitted.txt. Read all of them, and inspect the live diff and files again after fixes; prepared evidence can become stale. Fix blocking findings directly, run node scripts/check.mjs, and commit the focused corrections. Do not push or merge. Return a summary of the final implementation, corrections and validation, not a review verdict document. The enclosing independent-review phase, if present, takes precedence over this author prompt.`,
 };
 
 const gate = (approveMeans, sendBackMeans) =>
@@ -102,13 +95,8 @@ function definition() {
     {
       name: "Plan", defaults: OPUS, actions: [
         { key: "planWorktree", label: "Ensure worktree", actionType: "ensure-worktree", config: { branchPrefix: "wm/", carryOver: ".env" } },
-        { key: "plan", label: "Plan · Opus 5.5", actionType: "coding-agent", config: agent({
-          prompt: prompts.plan, autonomy: "read-only", requireApproval: false, saveResultAs: "plan.md", inactivityTimeoutSec: 1800 }) },
-        { key: "planReview", label: "Plan review · Opus 5.5 (fresh)", actionType: "coding-agent", config: agent({
-          prompt: prompts.planReview, autonomy: "read-only", requireApproval: true, saveResultAs: "plan-review.md", inactivityTimeoutSec: 900,
-          sendBackTo: "@Plan",
-          approvalInstructions: "Artifacts: plan.md (the plan) and plan-review.md (a fresh Opus review of it).\n" +
-            gate("GPT-6 Luna implements this plan.", "back to Plan; a fresh Opus planner redoes it with this review and your note.") }) },
+        { key: "plan", label: "Plan loop · Opus 5.5", actionType: "coding-agent", config: agent({
+          prompt: prompts.plan, loopMode: "plan", maxCorrections: 3, autonomy: "read-only", requireApproval: true, saveResultAs: "plan.md", inactivityTimeoutSec: 1800, sendBackTo: "@Plan", approvalInstructions: "Review the final plan.md after independent review and automatic corrections. Request revision updates the plan and reviews it again. Approve starts GPT-6 Luna implementation." }) },
         next("planNext"),
       ],
     },
@@ -116,7 +104,7 @@ function definition() {
       name: "Implement", defaults: LUNA, actions: [
         { key: "implementWorktree", label: "Ensure worktree", actionType: "ensure-worktree", config: { branchPrefix: "wm/", carryOver: ".env" } },
         { key: "implement", label: "Implement · GPT-6 Luna max", actionType: "coding-agent", config: agent({
-          prompt: prompts.implement, autonomy: "autonomous", requireApproval: false, saveResultAs: "implementation.md", inactivityTimeoutSec: 1800 }) },
+          prompt: prompts.implement, loopMode: "auto", reviewBeforeApproval: false, autonomy: "autonomous", requireApproval: false, saveResultAs: "implementation.md", inactivityTimeoutSec: 1800 }) },
         next("implementNext"),
       ],
     },
@@ -124,12 +112,22 @@ function definition() {
       name: "Review", defaults: OPUS, actions: [
         { key: "prepareReview", label: "Prepare review (diff + checks)", actionType: "shell",
           config: { command: "node scripts/agentify/review-prep.mjs", cwd: "repo", shell: "default" } },
-        { key: "codeReview", label: "Code review · Opus 5.5 (fresh)", actionType: "coding-agent", config: agent({
-          prompt: prompts.codeReview, autonomy: "read-only", requireApproval: true, saveResultAs: "review.md", inactivityTimeoutSec: 900,
+        { key: "codeReview", label: "Implement loop · Opus 5.5 review and fix", actionType: "coding-agent", config: agent({
+          prompt: prompts.codeReview, loopMode: "implementation", maxCorrections: 3, autonomy: "autonomous", requireApproval: true, saveResultAs: "implementation.md", inactivityTimeoutSec: 1800,
           sendBackTo: "@Implement",
-          approvalInstructions: "Artifacts: review.md (a fresh Opus review) and implementation.md (the implementer's summary); the diff is in the drawer.\n" +
-            gate("the branch merges into main (after merging main in and re-running checks).", "back to Implement; a fresh GPT-6 Luna implementer fixes the findings and your note.") }) },
+          approvalInstructions: "Review the final implementation.md and live diff after Opus has corrected and reviewed the implementation. Request revision applies and reviews further changes. Approve starts the CI loop, not Merge." }) },
         next("reviewNext"),
+      ],
+    },
+    {
+      name: "CI", defaults: LUNA, actions: [
+        { key: "ciLoop", label: "CI loop · GPT-6 Luna max", actionType: "coding-agent", config: agent({
+          loopMode: "ci", maxCorrections: 3, autonomy: "autonomous", requireApproval: true,
+          prompt: LOOP_RULES + "\n\nFix failing registered Maya checks within the approved scope. Preserve tests and product decisions. Commit focused corrections after validation. Do not push or merge.\n\n" + TASK + "\n\nApproved plan:\n{{artifacts[\"plan.md\"]}}\n\n" + NOTE,
+          ciCheckCommand: 'node "C:/code/maya/scripts/check.mjs" .', ciShell: "default", ciTimeoutSec: 1800,
+          ciPublishCommand: "", saveResultAs: "ci.md", inactivityTimeoutSec: 1800, sendBackTo: "@Implement",
+          approvalInstructions: "Review the final changes and ci.md after the registered checks pass. Remote PR checks are not configured in this checkout. Approve allows the existing Merge stage to merge into main." }) },
+        next("ciNext"),
       ],
     },
     {
@@ -175,7 +173,7 @@ if (dropped.length) console.warn(`Stages not in this definition will be deleted:
 
 const doc = {
   ...live,
-  description: "Maya: Opus 5.5 plans → fresh Opus plan review (you approve) → GPT-6 Luna max implements → fresh Opus code review (you approve) → merge. Process: C:\\code\\maya\\docs\\AGENTIFY_PROCESS.md",
+  description: "Maya: Opus plan loop → plan approval → Luna implementation → Opus review/fix loop → implementation approval → CI loop → final approval → merge. Process: C:\\code\\maya\\docs\\AGENTIFY_PROCESS.md",
   stages,
 };
 if (dryRun) {
